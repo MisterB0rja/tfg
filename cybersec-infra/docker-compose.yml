@@ -1,0 +1,80 @@
+version: '3.8'
+
+networks:
+  red_ciberseg:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+services:
+  # Servidor DNS
+  dns:
+    build: ./dns
+    container_name: servidor_dns
+    networks:
+      red_ciberseg:
+        ipv4_address: 172.20.0.2
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    volumes:
+      - ./dns/config:/etc/bind
+      - ./dns/zones:/var/lib/bind
+
+  # Servidores Nginx
+  nginx1:
+    image: nginx:latest
+    container_name: servidor_nginx1
+    networks:
+      red_ciberseg:
+        ipv4_address: 172.20.0.10
+    volumes:
+      - ./web/nginx1/conf:/etc/nginx/conf.d
+      - ./www:/var/www/html
+    depends_on:
+      - dns
+
+  nginx2:
+    image: nginx:latest
+    container_name: servidor_nginx2
+    networks:
+      red_ciberseg:
+        ipv4_address: 172.20.0.11
+    volumes:
+      - ./web/nginx2/conf:/etc/nginx/conf.d
+      - ./www:/var/www/html
+    depends_on:
+      - dns
+
+  # Balanceador de Carga Apache
+  apache_lb:
+    build: ./web/apache_lb
+    container_name: balanceador_apache
+    networks:
+      red_ciberseg:
+        ipv4_address: 172.20.0.5
+    ports:
+      - "80:80"
+    depends_on:
+      - nginx1
+      - nginx2
+
+  # MariaDB
+  mariadb:
+    image: mariadb:latest
+    container_name: servidor_mariadb
+    networks:
+      red_ciberseg:
+        ipv4_address: 172.20.0.20
+    environment:
+      MYSQL_ROOT_PASSWORD: contraseñaroot
+      MYSQL_DATABASE: bd_ciberseg
+      MYSQL_USER: usuario_ciberseg
+      MYSQL_PASSWORD: contraseña_ciberseg
+    volumes:
+      - ./database/data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/conf:/etc/mysql/conf.d
+    ports:
+      - "3306:3306"

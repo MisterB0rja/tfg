@@ -1,0 +1,9 @@
+zone "borjagarcia" {
+    type master;
+    file "/var/lib/bind/db.borjagarcia";
+};
+
+zone "20.172.in-addr.arpa" {
+    type master;
+    file "/var/lib/bind/db.172.20";
+};
