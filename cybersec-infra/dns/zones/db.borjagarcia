@@ -1,0 +1,19 @@
+$TTL    604800
+@       IN      SOA     ns1.borjagarcia. admin.borjagarcia. (
+                  2         ; Serial
+             604800         ; Refresh
+              86400         ; Retry
+            2419200         ; Expire
+             604800 )       ; Negative Cache TTL
+;
+@       IN      NS      ns1.borjagarcia.
+ns1     IN      A       172.20.0.2
+
+; Servidores web
+www     IN      A       172.20.0.5
+nginx1  IN      A       172.20.0.10
+nginx2  IN      A       172.20.0.11
+lb      IN      A       172.20.0.5
+
+; Servidor de base de datos
+db      IN      A       172.20.0.20

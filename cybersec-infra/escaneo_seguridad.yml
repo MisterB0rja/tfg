@@ -1,0 +1,122 @@
+---
+- name: Playbook de Escaneo de Seguridad
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    directorio_logs: /var/log/escaneos_seguridad
+    timestamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+    
+  tasks:
+    - name: Asegurar que existe el directorio de logs
+      file:
+        path: "{{ directorio_logs }}"
+        state: directory
+        mode: '0750'
+        
+    - name: Asegurar que nmap está instalado
+      package:
+        name: nmap
+        state: present
+        
+    - name: Asegurar que lynis está instalado (herramienta de auditoría de seguridad)
+      package:
+        name: lynis
+        state: present
+      ignore_errors: yes
+        
+    - name: Ejecutar escaneo de puertos en localhost
+      shell: nmap -sS -p- -T4 localhost > {{ directorio_logs }}/escaneo_puertos-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      register: escaneo_puertos
+      
+    - name: Verificar puertos en escucha
+      shell: ss -tuln > {{ directorio_logs }}/puertos_escucha-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+        
+    - name: Verificar intentos no autorizados de inicio de sesión SSH
+      shell: grep "Failed password" /var/log/auth.log | tail -n 100 > {{ directorio_logs }}/fallos_ssh-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+        
+    - name: Verificar uso no autorizado de sudo
+      shell: grep "authentication failure" /var/log/auth.log | tail -n 100 > {{ directorio_logs }}/fallos_sudo-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+        
+    - name: Verificar procesos inusuales
+      shell: ps aux | grep -v "^root\|^www-data\|^mysql\|^nobody\|^systemd\|^messagebus" > {{ directorio_logs }}/procesos_inusuales-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+        
+    - name: Verificar archivos con permisos de escritura para todos
+      shell: find / -path /proc -prune -o -path /sys -prune -o -type f -perm -o+w -ls 2>/dev/null > {{ directorio_logs }}/escritura_todos-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+        
+    - name: Verificar archivos SUID/SGID
+      shell: find / -path /proc -prune -o -path /sys -prune -o $$ -perm -4000 -o -perm -2000 $$ -ls 2>/dev/null > {{ directorio_logs }}/suid_sgid-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+        
+    - name: Verificar usuarios con contraseñas vacías
+      shell: awk -F':' '($2 == "") {print}' /etc/shadow > {{ directorio_logs }}/contraseñas_vacias-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+        
+    - name: Verificar conexiones de red activas
+      shell: netstat -antup > {{ directorio_logs }}/conexiones_red-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+        
+    - name: Ejecutar auditoría de seguridad Lynis
+      shell: lynis audit system --no-colors > {{ directorio_logs }}/auditoria_lynis-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+      when: ansible_distribution != "Alpine"
+        
+    - name: Crear informe resumen
+      shell: |
+        echo "Resumen de Escaneo de Seguridad - {{ timestamp }}" > {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        echo "====================================" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        echo "" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        
+        echo "Puertos Abiertos:" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        grep "open" {{ directorio_logs }}/escaneo_puertos-{{ timestamp }}.log >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        echo "" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        
+        echo "Inicios de Sesión SSH Fallidos:" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        wc -l {{ directorio_logs }}/fallos_ssh-{{ timestamp }}.log | awk '{print $1}' >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        echo "" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        
+        echo "Intentos Fallidos de Sudo:" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        wc -l {{ directorio_logs }}/fallos_sudo-{{ timestamp }}.log | awk '{print $1}' >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        echo "" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        
+        echo "Archivos con Permisos de Escritura para Todos:" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        wc -l {{ directorio_logs }}/escritura_todos-{{ timestamp }}.log | awk '{print $1}' >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        echo "" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        
+        echo "Archivos SUID/SGID:" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        wc -l {{ directorio_logs }}/suid_sgid-{{ timestamp }}.log | awk '{print $1}' >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        echo "" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        
+        echo "Usuarios con Contraseñas Vacías:" >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+        wc -l {{ directorio_logs }}/contraseñas_vacias-{{ timestamp }}.log | awk '{print $1}' >> {{ directorio_logs }}/resumen-{{ timestamp }}.log
+      args:
+        executable: /bin/bash
+        
+    - name: Limpiar logs de escaneo antiguos (mantener últimos 14 días)
+      shell: find {{ directorio_logs }} -type f -mtime +14 -delete
+      args:
+        executable: /bin/bash
