@@ -1,0 +1,17 @@
+# .github/workflows/issue-alert.yml
+name: Aviso de nuevo Issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  issue-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mostrar mensaje en consola
+        run: |
+          echo "Se ha creado un nuevo issue:"
+          echo "Título: ${{ github.event.issue.title }}"
+          echo "Autor: ${{ github.event.issue.user.login }}"
+          echo "URL: ${{ github.event.issue.html_url }}"
