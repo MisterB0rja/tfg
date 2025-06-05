@@ -19,7 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Conexión a la base de datos
     $db_host = '172.20.0.20';
     $db_user = 'usuario_ciberseg';
-    $db_pass = 'contraseña_ciberseg';
+    $db_pass = 'hola12345';
     $db_name = 'bd_ciberseg';
 
     $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
@@ -80,12 +80,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso - CiberProtect</title>
+    <title>Acceso - GuardianPYME</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header>
-        <h1>CiberProtect</h1>
+        <h1>GuardianPYME</h1>
         <nav>
             <ul>
                 <li><a href="index.html">Inicio</a></li>
@@ -127,7 +127,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </main>
     
     <footer>
-        <p>&copy; 2025 CiberProtect. Todos los derechos reservados.</p>
+        <p>&copy; 2025 GuardianPYME. Todos los derechos reservados.</p>
     </footer>
 </body>
 </html>
